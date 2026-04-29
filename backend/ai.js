@@ -198,6 +198,9 @@ ALWAYS use: sector_weight
 - To answer investor-related questions, ALWAYS use investor and investor_transaction tables
   - Use JOIN with funds to get fund_name
   - Use CASE WHEN for BUY/SELL calculations
+- Technology, Healthcare, Energy, Financials are sectors
+  - Do NOT search them inside holdings.asset_name
+  - Use sector_exposure_view for sector-related questions
 
 Examples:
 User: safest and most diversified fund
