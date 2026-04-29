@@ -59,6 +59,7 @@ VIEWS:
 
 STRICT RULES:
 - Use PostgreSQL syntax ONLY
+- DO NOT use OFFSET FETCH (Postgres uses LIMIT)
 - NEVER use:
   TOP, GETDATE(), ISNULL, NVARCHAR
 - ALWAYS use:
@@ -96,15 +97,7 @@ IMPORTANT:
 - DO NOT join nav_history and transactions together
 - NEVER use = (SELECT ...)
 - Use JOIN or IN instead
-- Use TOP instead of LIMIT
 - Use OFFSET FETCH only if needed
-- Use these views:
-  fund_risk_metrics
-  fund_performance_view
-  benchmark_comparison_view
-  sector_exposure_view
-  fund_sharpe_view
-  fund_diversification_view
 - DO NOT recompute metrics manually
 - Prefer simple SELECT queries from views
 - Column mappings:
@@ -189,7 +182,6 @@ ALWAYS use: sector_weight
 - sharpe_ratio exists in fund_sharpe_view (NOT in fund_master_metrics)
 - use:
   JOIN fund_sharpe_view s ON f.fund_id = s.fund_id
-- DO NOT use OFFSET FETCH (Postgres uses LIMIT)
 
 Example:
 User: safest and most diversified fund
