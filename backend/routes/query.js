@@ -159,9 +159,20 @@ function validateSQL(sql) {
   //   throw new Error("Multiple SQL statements not allowed");
   // }
 
-  if (q.split(";").filter(s => s.trim().length > 0).length > 1) {
-      throw new Error("Multiple SQL statements not allowed");
-      }
+  // if (q.split(";").filter(s => s.trim().length > 0).length > 1) {
+  //     throw new Error("Multiple SQL statements not allowed");
+  //     }
+
+  q = q.trim();
+
+  // remove trailing semicolon
+  q = q.replace(/;+$/, "");
+
+  // block actual multiple statements
+  const statements = q.split(";").filter(s => s.trim().length > 0);
+  if (statements.length > 1) {
+    throw new Error("Multiple SQL statements not allowed");
+  }
 
   // Basic invalid join check (optional but useful)
   if (q.includes("benchmark_id = h.fund_id")) {
