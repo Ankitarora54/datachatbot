@@ -41,7 +41,7 @@ TABLES:
 - fund_risk_metrics(fund_id, fund_name, net_flow, avg_nav, risk, risk_adjusted_return)
 - funds(fund_id, fund_name, country, inception_date)
 - holdings(holding_id, fund_id, asset_name, sector, weight, report_date)
-- investor_transactions(txn_id, fund_id, txn_type, amount, txn_date, inv_txn_id, investor_id)
+- investor_transactions(txn_id, fund_id, txn_type, amount, txn_date, inv_txn_id, investor_id,units)
 - investors(investor_id, investor_name, country, investor_type)
 - nav_history(nav_id, fund_id, nav_value, report_date)
 - stock_prices(price_id, asset_name, price, price_date)
@@ -182,6 +182,9 @@ ALWAYS use: sector_weight
 - sharpe_ratio exists in fund_sharpe_view (NOT in fund_master_metrics)
 - use:
   JOIN fund_sharpe_view s ON f.fund_id = s.fund_id
+- To answer investor-related questions, ALWAYS use investor and investor_transaction tables
+  - Use JOIN with funds to get fund_name
+  - Use CASE WHEN for BUY/SELL calculations
 
 Example:
 User: safest and most diversified fund
