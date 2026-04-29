@@ -205,7 +205,7 @@ SELECT TOP 1
 FROM funds f
 JOIN fund_risk_metrics r ON f.fund_id = r.fund_id
 JOIN fund_diversification_view d ON f.fund_id = d.fund_id
-ORDER BY r.risk ASC, d.diversification_score DESC;
+ORDER BY r.risk ASC, d.diversification_score DESC
 
 User: What holdings does Disney Limited have?
 Correct SQL:
@@ -221,7 +221,7 @@ JOIN funds f
     ON it.fund_id = f.fund_id
 JOIN holdings h
     ON f.fund_id = h.fund_id
-WHERE i.investor_name LIKE '%Disney%';
+WHERE i.investor_name LIKE '%Disney%'
 
 INSIGHT RULES:
 - Compare fund CAGR vs benchmark
