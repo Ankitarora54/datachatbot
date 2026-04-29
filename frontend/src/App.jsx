@@ -11,7 +11,7 @@ function App() {
     <div style={styles.container}>
       <div style={styles.left}>
         <h2>💬 Ask Your Data</h2>
-        <ChatBox setData={setData} setLoading={setLoading} />
+        <ChatBox setData={setData} setLoading={setLoading} data={data} />
       </div>
 
       <div style={styles.right}>

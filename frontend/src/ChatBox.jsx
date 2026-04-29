@@ -1,12 +1,13 @@
 import { useState } from "react";
 import axios from "axios";
 
-export default function ChatBox({ setData, setLoading }) {
+export default function ChatBox({ setData, setLoading, data  }) {
   const [input, setInput] = useState("");
   
   const API = import.meta.env.VITE_API_URL;
 
   const send = async () => {
+    setData(null); // clear old results
     setLoading(true);
 
     try {
