@@ -69,6 +69,10 @@ VIEWS:
 STRICT RULES:
 - Use PostgreSQL syntax ONLY
 - DO NOT use OFFSET FETCH (Postgres uses LIMIT)
+- Never use FETCH NEXT
+- Never use OFFSET ROWS
+- Never use SQL Server syntax
+- JOIN clauses must come before WHERE
 - NEVER use:
   TOP, GETDATE(), ISNULL, NVARCHAR
 - ALWAYS use:

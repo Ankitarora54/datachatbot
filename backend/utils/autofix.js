@@ -44,7 +44,7 @@ async function executeWithAutoFix(sqlQuery, question, validateSQL) {
 
       currentSQL = validateSQL(fix.fixed_sql);
       currentSQL = currentSQL.replace(/`/g, "");
-      currentSQL = fixQuery(currentSQL, err);
+      // currentSQL = fixQuery(currentSQL, err);
       console.log("🔧 RETRY SQL:", currentSQL);
     }
   }
