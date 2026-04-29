@@ -243,6 +243,7 @@ router.post("/", async (req, res) => {
     // const sqlQuery = aiRes.sql;
     let sqlQuery = validateSQL(aiRes.sql);
     let result;
+    let fix = null;
     try {
         result = await queryDB(sqlQuery);
         } catch (err) {
@@ -261,7 +262,7 @@ router.post("/", async (req, res) => {
         }
 
         // 🔥 Fix SQL using AI
-        const fix = await fixSQL(sqlQuery, err.message, question);
+        fix = await fixSQL(sqlQuery, err.message, question);
         let fixedSQL = validateSQL(fix.fixed_sql);
         console.log("🔧 FIXED SQL:", fix.fixed_sql);
 
@@ -272,7 +273,7 @@ router.post("/", async (req, res) => {
       throw new Error("Unsafe query blocked");
     }
 
-    let normalizedSQL = normalizeQuery(aiRes.sql);
+    let normalizedSQL = normalizeQuery(fix?.fixed_sql || aiRes.sql);
     // if (!normalizedSQL.toLowerCase().includes("limit")) {normalizedSQL += " LIMIT 50";}
     if (!/limit\s+\d+/i.test(normalizedSQL)) {normalizedSQL += " LIMIT 50";}
     let finalSQL = normalizedSQL;
