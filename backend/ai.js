@@ -149,6 +149,9 @@ ALWAYS use: sector_weight
 - Sector names are full names (e.g., "Information Technology")
 - DO NOT use abbreviations like "IT"
 - Use LIKE '%Technology%' if unsure
+- Technology, Healthcare, Energy, Financials are sectors
+  - Do NOT search them inside holdings.asset_name
+  - Use sector_exposure_view for sector-related questions
 - fund_master_metrics contains:
   risk, diversification_score, risk_adjusted_return, cagr
 - ALWAYS use fund_master_metrics for performance queries
@@ -198,9 +201,7 @@ ALWAYS use: sector_weight
 - To answer investor-related questions, ALWAYS use investor and investor_transaction tables
   - Use JOIN with funds to get fund_name
   - Use CASE WHEN for BUY/SELL calculations
-- Technology, Healthcare, Energy, Financials are sectors
-  - Do NOT search them inside holdings.asset_name
-  - Use sector_exposure_view for sector-related questions
+
 
 Examples:
 User: safest and most diversified fund
