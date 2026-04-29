@@ -34,6 +34,7 @@ function shouldUseParser(sql) {
 function validateSQL(sql) {
   let q = sql;
   // Replace unsupported functions
+  q = q.trim().replace(/;+$/, "");
   q = q.replace(/STDDEV_P/gi, "STDEV");
   q = q.replace(/AVG\((.*?)\)\s*\/\s*STDEV\((.*?)\)/gi,"AVG($1) / NULLIF(STDEV($2), 0)");
   // auto-fix common mistakes
