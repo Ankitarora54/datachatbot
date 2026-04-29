@@ -3,12 +3,16 @@ import axios from "axios";
 
 export default function ChatBox({ setData, setLoading }) {
   const [input, setInput] = useState("");
+  
+  const API = import.meta.env.VITE_API_URL;
 
   const send = async () => {
     setLoading(true);
 
     try {
-      const res = await axios.post("/query", {
+      // const res = await axios.post("/query", {
+      console.log("API URL:", API);
+      const res = await axios.post(`${API}/query`, {
         question: input,
         sessionId: "user1",
       });
