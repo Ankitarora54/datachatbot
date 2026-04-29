@@ -1,0 +1,307 @@
+const OpenAI = require("openai");
+const { getSchema } = require("./schema");
+const { formatSchema } = require("./formatSchema");
+const { loadSchema } = require("./utils/schemaLoader");
+
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+async function generateSQL(userQuery, history = []) {
+  const schema = await getSchema();
+  // const schemaRaw = await loadSchema();
+  const schemaText = formatSchema(schema);
+
+  const res = await client.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      {
+        role: "system",
+        content: `
+You are a SQL Server expert.
+
+content:
+DATABASE SCHEMA:
+${schemaText}
+
+Relationships:
+- fund_aum.fund_id → funds.fund_id
+- nav_history.fund_id → funds.fund_id
+- transactions.fund_id → funds.fund_id
+- investor_transactions.fund_id → funds.fund_id
+- investor_transactions.investor_id → investors.investor_id
+- holdings.fund_id → funds.fund_id
+
+STRICT RULES:
+- Use PostgreSQL syntax ONLY
+- NEVER use:
+  TOP, GETDATE(), ISNULL, NVARCHAR
+- ALWAYS use:
+  LIMIT instead of TOP
+  NOW() instead of GETDATE()
+  COALESCE instead of ISNULL
+- Return ONLY valid JSON
+- Do NOT use code blocks (no \`\`\`)
+- Do NOT use string concatenation (+)
+- SQL must be a single string
+- Always use proper JOINs using these relationships
+- Use SIMPLE SQL only
+- Avoid CTEs unless necessary
+- Do NOT use advanced functions like STDDEV_P
+- Prefer STDEV for SQL Server
+- Avoid nested CTE chains
+- Avoid hallucinating columns or tables
+
+IMPORTANT:
+- Use exact column names from schema
+- Use LIKE '%keyword%' instead of exact match for fund_name
+- Do NOT assume exact names
+- DO NOT invent column names
+- Prefer fund_master_metrics for analytics
+- Use consistent table aliases
+- If alias is "nav", NEVER use "n"
+- NEVER join large tables directly
+- ALWAYS aggregate before joining
+- If fund_risk_metrics exists, ALWAYS use it
+- DO NOT recompute risk manually
+- fund_risk_metrics already contains:
+    net_flow, avg_nav, risk, risk_adjusted_return
+- ALWAYS use risk_adjusted_return directly
+- DO NOT recompute it
+- DO NOT join nav_history and transactions together
+- NEVER use = (SELECT ...)
+- Use JOIN or IN instead
+- Use TOP instead of LIMIT
+- Use OFFSET FETCH only if needed
+- Use these views:
+  fund_risk_metrics
+  fund_performance_view
+  benchmark_comparison_view
+  sector_exposure_view
+  fund_sharpe_view
+  fund_diversification_view
+- DO NOT recompute metrics manually
+- Prefer simple SELECT queries from views
+- Column mappings:
+fund_risk_metrics:
+  - risk
+  - avg_nav
+  - risk_adjusted_return
+fund_diversification_view:
+  - diversification_score
+  - concentration_index
+  - total_assets
+- NEVER use columns from one view in another
+- If query needs both risk AND diversification:
+  JOIN fund_risk_metrics AND fund_diversification_view on fund_id
+- Use fund_master_metrics whenever possible
+- fund_master_metrics already contains:
+  risk, diversification_score, risk_adjusted_return
+- ALWAYS prefer fund_master_metrics over joining multiple tables
+  diversification_score, concentration_index, total_assets
+- DO NOT join fund_risk_metrics or fund_diversification_view if fund_master_metrics can be used
+sector_exposure_view columns:
+  - fund_id
+  - fund_name
+  - sector
+  - sector_weight
+DO NOT use:
+  - weight
+  - exposure_weight
+ALWAYS use: sector_weight
+  - sector_weight is stored as percentage (0–100)
+  - NOT decimal (0–1)
+  - Use 40 instead of 0.4 for 40%
+- sector_weight exists ONLY in sector_exposure_view
+- holdings has ONLY weight (not sector_weight)
+- asset_country_map joins via asset_name, not fund_id
+- Sector names are full names (e.g., "Information Technology")
+- DO NOT use abbreviations like "IT"
+- Use LIKE '%Technology%' if unsure
+- fund_master_metrics contains:
+  risk, diversification_score, risk_adjusted_return, cagr
+- ALWAYS use fund_master_metrics for performance queries
+- benchmark_comparison_view does NOT have fund_id
+- NEVER join it using fund_id
+- Use CROSS JOIN when comparing funds with benchmarks
+- benchmark_comparison_view has ONLY:
+  benchmark_name, cagr
+- NEVER create columns like:
+  s_and_p_500_cagr, benchmark_cagr
+- Always filter using:
+  benchmark_name = 'S&P 500'
+- Do NOT assume funds outperform benchmarks
+- If strict comparison returns no data:
+  → fallback to ORDER BY instead of filtering
+- concentration_index is stored between 0 and 1
+- DO NOT use values like > 10
+- Use decimal thresholds like > 0.10
+- holdings table columns:
+  asset_name, sector, weight, fund_id, report_date
+- DO NOT use:
+  holding_name, holding_value, value
+- Use:
+  asset_name (for name)
+  weight (for value)
+- holdings has column: weight (NOT sector_weight)
+- sector_exposure_view already contains sector_weight
+- NEVER join holdings with sector_exposure_view on sector
+- Use either holdings OR sector_exposure_view, not both
+- country exposure is derived using asset_country_map
+- JOIN:
+  holdings → asset_country_map → country
+- DO NOT use country from sector_exposure_view
+- benchmark_name values may vary (e.g., 'NIFTY 50')
+- ALWAYS use LIKE '%NIFTY%' instead of '='
+- NEVER use CROSS JOIN unless explicitly required
+- benchmark_comparison_view has columns: benchmark_name, cagr
+- benchmark_comparison_view has NO fund_id
+- benchmark is global (not per fund)
+- DO NOT join benchmark using fund_id
+- Use:
+  JOIN benchmark_comparison_view b 
+  ON b.benchmark_name LIKE '%NIFTY%'
+- sharpe_ratio exists in fund_sharpe_view (NOT in fund_master_metrics)
+- use:
+  JOIN fund_sharpe_view s ON f.fund_id = s.fund_id
+- DO NOT use OFFSET FETCH (Postgres uses LIMIT)
+
+Example:
+User: safest and most diversified fund
+SQL:
+SELECT TOP 1 
+  f.fund_name,
+  r.risk,
+  d.diversification_score
+FROM funds f
+JOIN fund_risk_metrics r ON f.fund_id = r.fund_id
+JOIN fund_diversification_view d ON f.fund_id = d.fund_id
+ORDER BY r.risk ASC, d.diversification_score DESC
+
+INSIGHT RULES:
+- Compare fund CAGR vs benchmark
+- Identify outperforming and underperforming funds
+- Detect sector concentration risk
+- Highlight anomalies
+- Highlight top performers
+- Identify risk (high volatility, low diversification)
+- Detect concentration (sector > 20%)
+- Compare vs benchmark
+- Use simple business language
+
+Format EXACTLY:
+{
+  "sql": "SELECT ...",
+  "explanation": "...",
+  "insight": "..."
+}
+
+Return JSON:
+{
+ "sql": "...",
+ "explanation": "..."
+}
+        `,
+      },
+      ...history,
+      { role: "user", content: userQuery },
+    ],
+  });
+    const raw = res.choices[0].message.content;
+
+    console.log("AI RAW RESPONSE:", raw);
+
+    // 🧹 Clean markdown
+    let cleaned = raw
+    .replace(/```json/g, "")
+    .replace(/```/g, "")
+    .trim();
+
+    // 🧠 Case 1: JSON response
+    if (cleaned.startsWith("{")) {
+    try {
+        return JSON.parse(cleaned);
+    } catch (e) {
+        console.error("❌ JSON parse failed:", cleaned);
+        throw new Error("Invalid JSON from AI");
+    }
+    }
+
+    // 🧠 Case 2: Raw SQL response
+    if (cleaned.toLowerCase().startsWith("select")) {
+    return {
+        sql: cleaned,
+        explanation: "Generated SQL query based on your request.",
+    };
+    }
+
+    // ❌ Unknown format
+    throw new Error("AI returned unexpected format:\n" + cleaned);
+    // const raw = res.choices[0].message.content;
+    // console.log("AI RAW RESPONSE:", raw);
+    // // 🧹 Clean markdown
+    // let cleaned = raw
+    //     .replace(/```json/g, "")
+    //     .replace(/```/g, "")
+    //     .trim();
+
+    // try {
+    // return JSON.parse(raw);
+    // } catch (e) {
+    // throw new Error("AI did not return valid JSON:\n" + raw);
+    // }
+
+//   return JSON.parse(res.choices[0].message.content);
+}
+
+async function safeGenerateSQL(question, history=[]) {
+  const schemaText = "";
+  try {
+    return await generateSQL(question, history);
+  } catch (err) {
+    console.log("⚠️ First attempt failed, retrying...");
+
+    // retry with stricter instruction
+    return await generateSQL(
+      question + "\nIMPORTANT: Return ONLY valid JSON. No markdown. No plain SQL.",
+      schemaText
+    );
+  }
+}
+
+async function fixSQL(badSQL, error, question) {
+  const res = await client.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      {
+        role: "system",
+        content: `
+Fix SQL Server query.
+
+Return JSON:
+{ "fixed_sql": "...", "reason": "..." }
+        `,
+      },
+      {
+        role: "user",
+        content: `
+Question: ${question}
+SQL: ${badSQL}
+Error: ${error}
+        `,
+      },
+    ],
+  });
+const raw = res.choices[0].message.content;
+let cleaned = raw
+  .replace(/```json/g, "")
+  .replace(/```/g, "")
+  .trim();
+
+return JSON.parse(cleaned);
+
+//   return JSON.parse(res.choices[0].message.content);
+}
+
+//module.exports = { generateSQL, fixSQL };
+module.exports = {generateSQL,safeGenerateSQL,fixSQL};
