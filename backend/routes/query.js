@@ -57,7 +57,7 @@ function validateSQL(sql) {
   
   q = q.replace(/=\s*\(\s*select\s+fund_id\s+from\s+funds\s+where/i,
     "IN (SELECT fund_id FROM funds WHERE");
-
+  q = q.replace(/join\s+countries\s+c\s+on\s+a\.country_id\s*=\s*c\.country_id/gi,"");
   // fix wrong column usage
   q = q.replace(/h\.sector_weight/gi, "se.sector_weight");
   // fix wrong join

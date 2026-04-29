@@ -32,6 +32,31 @@ Relationships:
 - investor_transactions.investor_id → investors.investor_id
 - holdings.fund_id → funds.fund_id
 
+TABLES:
+- asset_country_map(asset_name, country)
+- benchmarks(benchmark_id, value, date, name)
+- fund_aum(aum_id, fund_id, aum, report_date)
+- fund_master_metrics(fund_id, fund_name, net_flow, avg_nav, risk, risk_adjusted_return, total_assets, concentration_index, diversification_score, cagr)
+- fund_performance(fund_name, start_nav, end_nav, days, cagr, volatility)
+- fund_risk_metrics(fund_id, fund_name, net_flow, avg_nav, risk, risk_adjusted_return)
+- funds(fund_id, fund_name, country, inception_date)
+- holdings(holding_id, fund_id, asset_name, sector, weight, report_date)
+- investor_transactions(txn_id, fund_id, txn_type, amount, txn_date, inv_txn_id, investor_id)
+- investors(investor_id, investor_name, country, investor_type)
+- nav_history(nav_id, fund_id, nav_value, report_date)
+- stock_prices(price_id, asset_name, price, price_date)
+- transactions(txn_id, fund_id, txn_type, amount, txn_date)
+
+VIEWS:
+- benchmark_comparison_view(benchmark_name, cagr)
+- country_exposure_view(fund_id, country, country_exposure)
+- fund_diversification_view(fund_id, fund_name, total_assets, concentration_index, diversification_score)
+- fund_performance_view(fund_id, cagr)
+- fund_risk_metrics_view(fund_id, fund_name, net_flow, avg_nav, risk, risk_adjusted_return)
+- fund_sharpe_view(fund_id, fund_name, cagr, risk, sharpe_ratio)
+- sector_exposure_view(fund_id, fund_name, sector, sector_weight, weight)
+- sector_summary_view(fund_id, fund_name, sector, sector_weight)
+
 STRICT RULES:
 - Use PostgreSQL syntax ONLY
 - NEVER use:
