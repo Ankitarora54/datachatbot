@@ -21,7 +21,7 @@ function App() {
           <>
             <div style={styles.card}>
               <h3 style={{ marginBottom: "10px", color: "#111827" }}>🧾 SQL Query</h3>
-              <pre>{data.query}</pre>
+              <pre style={styles.sqlBox}>{data.query}</pre>
             </div>
 
             <div style={styles.card}>
@@ -76,6 +76,21 @@ const styles = {
     marginBottom: "20px",
     borderRadius: "12px",
     boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+  },
+  sqlBox: {
+  margin: 0,
+  whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
+  overflowWrap: "break-word",
+  overflowX: "auto",
+  maxWidth: "100%",
+  fontSize: "14px",
+  lineHeight: "1.5",
+  fontFamily: "monospace",
+  background: "#f3f4f6",
+  padding: "12px",
+  borderRadius: "8px",
+  boxSizing: "border-box",
   },
 };
 
