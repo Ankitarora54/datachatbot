@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { executeWithAutoFix } = require("../utils/autoFix");
+const { executeWithAutoFix } = require("../utils/autofix");
 // const { generateSQL, fixSQL } = require("../ai");
 const { safeGenerateSQL,fixSQL  } = require("../ai");
 console.log("fixSQL type:", typeof fixSQL);
