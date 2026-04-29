@@ -13,7 +13,16 @@ async function queryDB(query) {
   return result.rows;
 }
 
-// module.exports = { queryDB };
+pool.connect()
+  .then(() => {
+    console.log("Database Connected");
+  })
+  .catch((err) => {
+    console.error("Database Connection Failed");
+    console.error(err);
+  });
+
+module.exports = { queryDB };
 
 // const pool = require("./dbconfig"); // Import the pool from your config file
 
