@@ -125,11 +125,12 @@ function validateSQL(sql) {
     q = q.replace(/\bholding_name\b/gi, "asset_name");
     q = q.replace(/\bholding_value\b/gi, "weight");
     q = q.replace(/\bh\.value\b/gi, "h.weight");
-    q.replace(/TOP\s+(\d+)/gi, "LIMIT");
+    // q.replace(/TOP\s+(\d+)/gi, "LIMIT");
     q.replace(/GETDATE\(\)/gi, "NOW()");
     q.replace(/ISNULL\(/gi, "COALESCE(");
     q.replace(/`/g, "");
     q.replace(/\[|\]/g, "");
+    q = q.replace(/NVARCHAR/gi, "TEXT");
     // fix wrong alias usage
     // q = q.replace(/s\.sharpe_ratio/gi, "m.sharpe_ratio");
 
