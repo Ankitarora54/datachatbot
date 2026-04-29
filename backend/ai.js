@@ -31,6 +31,15 @@ Relationships:
 - investor_transactions.fund_id → funds.fund_id
 - investor_transactions.investor_id → investors.investor_id
 - holdings.fund_id → funds.fund_id
+- investors.investor_id → investor_transactions.investor_id
+  → investor_transaction using investor_id
+- investor_transaction
+  → funds using fund_id
+ - funds
+    → holdings using fund_id
+If user asks about an investor:
+  - ALWAYS use investor and investor_transaction tables
+  - NEVER search investor names inside holdings.asset_name
 
 TABLES:
 - asset_country_map(asset_name, country)
@@ -186,9 +195,9 @@ ALWAYS use: sector_weight
   - Use JOIN with funds to get fund_name
   - Use CASE WHEN for BUY/SELL calculations
 
-Example:
+Examples:
 User: safest and most diversified fund
-SQL:
+Correct SQL:
 SELECT TOP 1 
   f.fund_name,
   r.risk,
@@ -196,7 +205,23 @@ SELECT TOP 1
 FROM funds f
 JOIN fund_risk_metrics r ON f.fund_id = r.fund_id
 JOIN fund_diversification_view d ON f.fund_id = d.fund_id
-ORDER BY r.risk ASC, d.diversification_score DESC
+ORDER BY r.risk ASC, d.diversification_score DESC;
+
+User: What holdings does Disney Limited have?
+Correct SQL:
+SELECT
+    i.investor_name,
+    f.fund_name,
+    h.asset_name,
+    h.weight
+FROM investor i
+JOIN investor_transaction it
+    ON i.investor_id = it.investor_id
+JOIN funds f
+    ON it.fund_id = f.fund_id
+JOIN holdings h
+    ON f.fund_id = h.fund_id
+WHERE i.investor_name LIKE '%Disney%';
 
 INSIGHT RULES:
 - Compare fund CAGR vs benchmark
