@@ -9,7 +9,7 @@ const client = new OpenAI({apiKey: process.env.OPENAI_API_KEY,});
 const llm = new ChatOpenAI({model: "gpt-4o-mini",temperature: 0,apiKey: process.env.OPENAI_API_KEY,});
 async function generateSQL(userQuery, history = []) {
   const schema = await getSchema();
-  // const schemaRaw = await loadSchema();-
+  // const schemaRaw = await loadSchema();
   const schemaText = formatSchema(schema);
 
   const messages = [ new SystemMessage(`
