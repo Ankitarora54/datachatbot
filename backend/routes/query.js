@@ -169,9 +169,9 @@ function validateSQL(sql) {
 
   // remove trailing semicolon
   q = q.replace(/;+$/, "");
-
+  q = q.replace(/;+$/g, "");
   // block actual multiple statements
-  const statements = q.split(";").filter(s => s.trim().length > 0);
+  const statements = q.split(";").map(s => s.trim()).filter(Boolean);
   if (statements.length > 1) {
     throw new Error("Multiple SQL statements not allowed");
   }
