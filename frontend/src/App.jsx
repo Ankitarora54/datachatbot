@@ -9,6 +9,8 @@ function App() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
+
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -30,6 +32,40 @@ function App() {
   return (
     <div style={styles.page}>
       <div style={styles.topBar}>
+
+        <div style={styles.modelContainer}>
+          <div style={styles.warningText}>
+          ⚠️ If you face errors while asking questions,
+        switch the model to <strong>GPT-5 Mini / GPT 5</strong>.
+        GPT-4 versions may occasionally generate
+        incorrect SQL for complex portfolio queries.
+        </div>
+
+          <label style={styles.modelLabel}>
+            Model
+          </label>
+
+          <select
+            value={selectedModel}
+            onChange={(e) =>
+              setSelectedModel(e.target.value)
+            }
+            style={styles.modelSelect}
+          >
+            <option value="gpt-4o-mini">
+              GPT-4o Mini
+            </option>
+
+            <option value="gpt-5-mini">
+              GPT-5 Mini
+            </option>
+
+            <option value="gpt-5">
+              GPT-5
+            </option>
+          </select>
+        </div>
+        
         <button
           style={styles.logoutButton}
           onClick={() => {
@@ -40,22 +76,15 @@ function App() {
           Logout
         </button>
       </div>
+
     <div style={styles.container}>
       <div style={styles.left}>
         <h2>💬 Ask Your Data</h2>
-        <ChatBox setData={setData} setLoading={setLoading} data={data} />
+        {/* <ChatBox setData={setData} setLoading={setLoading} data={data} /> */}
+        <ChatBox setData={setData} setLoading={setLoading} data={data} 
+        selectedModel={selectedModel}/>
       </div>
-      {/* <div style={styles.topBar}>
-          <button
-            style={styles.logoutButton}
-            onClick={() => {
-              localStorage.removeItem("token");
-              window.location.reload();
-            }}
-          >
-            Logout
-          </button>
-        </div> */}
+  
       <div style={styles.right}>
         {loading && <p>⏳ Generating...</p>}
 
@@ -106,6 +135,29 @@ topBar: {
   boxSizing: "border-box",
 },
 
+modelContainer: {
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
+},
+
+modelLabel: {
+  fontWeight: "600",
+  color: "#111827",
+  fontSize: "14px",
+},
+
+modelSelect: {
+  padding: "10px 14px",
+  borderRadius: "10px",
+  border: "1px solid #d1d5db",
+  background: "#fff",
+  fontSize: "14px",
+  cursor: "pointer",
+  outline: "none",
+},
+
+
 logoutButton: {
   padding: "10px 18px",
   borderRadius: "10px",
@@ -116,6 +168,17 @@ logoutButton: {
   fontWeight: "600",
   transition: "0.3s ease",
 },
+
+warningText: {
+  fontSize: "13px",
+  color: "#92400e",
+  background: "#fef3c7",
+  padding: "6px 8px",
+  borderRadius: "10px",
+  border: "1px solid #fcd34d",
+  fontWeight: "500",
+},
+
   container: {
     display: "flex",
     height: "100vh",

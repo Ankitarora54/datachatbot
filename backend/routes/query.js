@@ -267,12 +267,12 @@ function generateInsight(result) {
 
 router.post("/", async (req, res) => {
   try {
-    const { question, sessionId } = req.body;
+    const { question, sessionId, model="gpt-4o-mini", } = req.body;
 
     const history = getMemory(sessionId);
 
     // const aiRes = await generateSQL(question, history);
-    const aiRes = await safeGenerateSQL(question);
+    const aiRes = await safeGenerateSQL(question, history, model);
     // const sqlQuery = aiRes.sql;
     let sqlQuery = validateSQL(aiRes.sql);
     let result;

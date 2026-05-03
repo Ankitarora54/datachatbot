@@ -1,7 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 
-export default function ChatBox({ setData, setLoading, data  }) {
+export default function ChatBox({ setData, setLoading, data,selectedModel,  }) {
   const [input, setInput] = useState("");
   
   const API = import.meta.env.VITE_API_URL;
@@ -33,6 +33,7 @@ export default function ChatBox({ setData, setLoading, data  }) {
       const res = await axios.post(`${API}/query`, {
         question: input,
         sessionId: "user1",
+        model: selectedModel,
       },
       {
         headers: {

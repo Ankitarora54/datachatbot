@@ -6,11 +6,15 @@ const { ChatOpenAI } = require("@langchain/openai");
 
 const {HumanMessage,SystemMessage,} = require("@langchain/core/messages");
 const client = new OpenAI({apiKey: process.env.OPENAI_API_KEY,});
-const llm = new ChatOpenAI({model: "gpt-4o-mini",apiKey: process.env.OPENAI_API_KEY,});
-async function generateSQL(userQuery, history = []) {
+// const llm = new ChatOpenAI({model: model,apiKey: process.env.OPENAI_API_KEY,});
+async function generateSQL(userQuery, history = [], model = "gpt-4o-mini") {
   const schema = await getSchema();
   // const schemaRaw = await loadSchema();
   const schemaText = formatSchema(schema);
+  // const llm = new ChatOpenAI({model,apiKey: process.env.OPENAI_API_KEY,temperature: 0,});
+  const llmConfig = {model, apiKey: process.env.OPENAI_API_KEY,};
+  if (model.startsWith("gpt-4")) {llmConfig.temperature = 0; }
+  const llm = new ChatOpenAI(llmConfig);
 
   const messages = [ new SystemMessage(`
     You are a SQL Server expert.
@@ -302,10 +306,10 @@ const res = await llm.invoke(messages, {
     
 }
 
-async function safeGenerateSQL(question, history=[]) {
+async function safeGenerateSQL(question, history=[], model = "gpt-4o-mini") {
   const schemaText = "";
   try {
-    return await generateSQL(question, history);
+    return await generateSQL(question, history, model);
   } catch (err) {
     console.log("⚠️ First attempt failed, retrying...");
 
