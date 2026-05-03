@@ -119,6 +119,7 @@ function validateSQL(sql) {
     q = q.replace(/\bb\.benchmark_cagr\b/gi, "b.cagr");
     q = q.replace(/\bbenchmark_cagr\b(?!\s+AS)/gi, "b.cagr");
     q = q.replace(/AS\s+b\.cagr/gi, "AS benchmark_cagr");
+    q = q.replace(/\bs\./gi, "m.");
     // fix invalid alias patterns
     q = q.replace(/AS\s+\w+\.\w+/gi, "AS benchmark_cagr");
     // Fix wrong column names for holdings

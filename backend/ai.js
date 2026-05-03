@@ -91,6 +91,9 @@ async function generateSQL(userQuery, history = []) {
       - Use LIKE '%keyword%' instead of exact match for fund_name
       - Do NOT assume exact names
       - DO NOT invent column names
+      - Use consistent table aliases
+      - Do not reference aliases that are not defined in JOIN clauses
+      - Validate aliases before generating final SQL
       - Prefer fund_master_metrics for analytics
       - Use consistent table aliases
       - If alias is "nav", NEVER use "n"
