@@ -11,8 +11,8 @@ console.log(process.env.JWT_SECRET);
 // };
 
 const demoUser = {
-  email: "admin@test.com",
-  password: "admin123",
+  email: "testuser@test.com",
+  password: "testchatbot2026",
 };
 
 router.post("/login", async (req, res) => {

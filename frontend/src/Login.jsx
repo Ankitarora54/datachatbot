@@ -5,8 +5,8 @@ import "./Login.css";
 const API = import.meta.env.VITE_API_URL;
 
 export default function Login({ setIsAuthenticated }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("testuser@test.com");
+  const [password, setPassword] = useState("testchatbot2026");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -92,8 +92,8 @@ export default function Login({ setIsAuthenticated }) {
         <div className="demo-box">
           <strong>Demo Credentials</strong>
 
-          <p>admin@test.com</p>
-          <p>admin123</p>
+          <p>testuser@test.com</p>
+          <p>testchatbot2026</p>
         </div>
       </div>
     </div>
