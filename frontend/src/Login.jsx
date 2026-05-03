@@ -15,12 +15,14 @@ export default function Login({ setIsAuthenticated }) {
     setLoading(true);
 
     try {
+      await axios.get(API, {timeout: 60000,});
       const res = await axios.post(
         `${API}/auth/login`,
         {
           email,
           password,
-        }
+        },
+        {timeout: 60000,}
       );
 
       localStorage.setItem("token", res.data.token);
@@ -28,7 +30,24 @@ export default function Login({ setIsAuthenticated }) {
       setIsAuthenticated(true);
     } catch (err) {
       console.error(err);
-      setError("Invalid credentials");
+      if (
+      err.code === "ECONNABORTED" ||
+      err.message.includes("timeout")
+      ) {
+          setError(
+            "Server is starting up. Please wait and try again."
+          );
+        }
+
+        else if (err.response?.status === 401) {
+          setError("Invalid credentials");
+        }
+
+        else {
+          setError(
+            "Backend is waking up. Please retry in a few seconds."
+          );
+        }
     }
 
     setLoading(false);
