@@ -6,7 +6,7 @@ const { ChatOpenAI } = require("@langchain/openai");
 
 const {HumanMessage,SystemMessage,} = require("@langchain/core/messages");
 const client = new OpenAI({apiKey: process.env.OPENAI_API_KEY,});
-const llm = new ChatOpenAI({model: "gpt-5-mini",apiKey: process.env.OPENAI_API_KEY,});
+const llm = new ChatOpenAI({model: "gpt-4o-mini",apiKey: process.env.OPENAI_API_KEY,});
 async function generateSQL(userQuery, history = []) {
   const schema = await getSchema();
   // const schemaRaw = await loadSchema();
