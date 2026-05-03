@@ -6,7 +6,7 @@ const { ChatOpenAI } = require("@langchain/openai");
 
 const {HumanMessage,SystemMessage,} = require("@langchain/core/messages");
 const client = new OpenAI({apiKey: process.env.OPENAI_API_KEY,});
-const llm = new ChatOpenAI({model: "gpt-4o-mini",temperature: 0,apiKey: process.env.OPENAI_API_KEY,});
+const llm = new ChatOpenAI({model: "gpt-5-mini",apiKey: process.env.OPENAI_API_KEY,});
 async function generateSQL(userQuery, history = []) {
   const schema = await getSchema();
   // const schemaRaw = await loadSchema();
@@ -299,21 +299,7 @@ const res = await llm.invoke(messages, {
 
     // ❌ Unknown format
     throw new Error("AI returned unexpected format:\n" + cleaned);
-    // const raw = res.choices[0].message.content;
-    // console.log("AI RAW RESPONSE:", raw);
-    // // 🧹 Clean markdown
-    // let cleaned = raw
-    //     .replace(/```json/g, "")
-    //     .replace(/```/g, "")
-    //     .trim();
-
-    // try {
-    // return JSON.parse(raw);
-    // } catch (e) {
-    // throw new Error("AI did not return valid JSON:\n" + raw);
-    // }
-
-//   return JSON.parse(res.choices[0].message.content);
+    
 }
 
 async function safeGenerateSQL(question, history=[]) {
@@ -355,28 +341,7 @@ async function fixSQL(badSQL, error, question) {
         },
       }
     );
-//   const res = await client.chat.completions.create({
-//     model: "gpt-4o-mini",
-//     messages: [
-//       {
-//         role: "system",
-//         content: `
-// Fix SQL Server query.
 
-// Return JSON:
-// { "fixed_sql": "...", "reason": "..." }
-//         `,
-//       },
-//       {
-//         role: "user",
-//         content: `
-// Question: ${question}
-// SQL: ${badSQL}
-// Error: ${error}
-//         `,
-//       },
-//     ],
-//   });
 const raw = res.content;
 let cleaned = raw
   .replace(/```json/g, "")
