@@ -6,6 +6,22 @@ export default function ChatBox({ setData, setLoading, data  }) {
   
   const API = import.meta.env.VITE_API_URL;
 
+  const suggestedQueries = [
+  "Country exposure for HDFC Large Cap Opportunities Fund",
+  "Market exposure for HDFC Large Cap Opportunities Fund",
+  "Top 10 holdings for ICICI Fund",
+  "Which funds outperformed NIFTY last year?",
+  "Which fund has highest risk-adjusted return?",
+  "Which sectors are overexposed across funds?",
+  "Funds heavily invested in IT",
+  "Which country contributes most to Disney Limited risk exposure?",
+  "Compare Disney Limited invested funds against benchmark CAGR",
+  "Compare buy and sell transactions for Disney Limited",
+  "Show geographic allocation of Disney Limited portfolio",
+  "Compare Disney Limited and BlackRock Capital by total investment",
+  "Which investor owns the best performing portfolio?",
+  ];
+
   const send = async () => {
     setData(null); // clear old results
     setLoading(true);
@@ -33,6 +49,8 @@ export default function ChatBox({ setData, setLoading, data  }) {
 
     setLoading(false);
   };
+  
+  const handleSuggestionClick = (query) => {setInput(query);};
 
   return (
     <div>
@@ -56,6 +74,25 @@ export default function ChatBox({ setData, setLoading, data  }) {
       <button style={styles.button} onClick={send}>
         Ask
       </button>
+      <div style={styles.suggestionContainer}>
+        <h3 style={styles.suggestionTitle}>
+          Suggested Queries
+        </h3>
+
+        <div style={styles.suggestionList}>
+          {suggestedQueries.map((query, index) => (
+            <div
+              key={index}
+              style={styles.suggestionCard}
+              onClick={() =>
+                handleSuggestionClick(query)
+              }
+            >
+              {query}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -71,6 +108,35 @@ const styles = {
   // cursor: "pointer",
   // marginBottom: "15px",
   // },
+    suggestionContainer: {
+    marginTop: "25px",
+  },
+
+  suggestionTitle: {
+  marginBottom: "10px",
+  color: "#111827",
+  fontSize: "15px",
+  fontWeight: "600",
+},
+
+  suggestionList: {
+  display: "flex",
+  flexDirection: "column",
+  gap: "6px",
+},
+
+  suggestionCard: {
+  padding: "8px 10px",
+  background: "#ffffff",
+  border: "1px solid #e5e7eb",
+  borderRadius: "8px",
+  cursor: "pointer",
+  transition: "0.2s ease",
+  fontSize: "12px",
+  lineHeight: "1.3",
+  color: "#374151",
+  boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+},
   input: {
     width: "100%",
     padding: "10px",
