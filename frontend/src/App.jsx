@@ -20,6 +20,36 @@ function App() {
     }
   }, []);
 
+  useEffect(() => {
+
+  const API = import.meta.env.VITE_API_URL;
+
+  const pingServer = async () => {
+    try {
+
+      await fetch(API);
+
+      console.log(
+        "✅ Render keep-alive ping sent"
+      );
+
+    } catch (err) {
+
+      console.error(
+        "❌ Keep-alive ping failed",
+        err
+      );
+    }
+  };
+
+  // ping immediately
+  pingServer();
+
+  // ping every 14 minutes
+  const interval = setInterval(pingServer, 14 * 60 * 1000);
+  return () => clearInterval(interval);
+  }, []);
+
   // show login first
   if (!isAuthenticated) {
     return (

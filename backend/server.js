@@ -14,7 +14,7 @@ app.use(express.json());
 
 /* HEALTH ROUTE */
 app.get("/", (req, res) => {
-  res.send("Backend Running");
+  res.status(200).send("Backend Running");
 });
 
 app.get("/test-db", async (req, res) => {
