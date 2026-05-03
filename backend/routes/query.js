@@ -119,7 +119,19 @@ function validateSQL(sql) {
     q = q.replace(/\bb\.benchmark_cagr\b/gi, "b.cagr");
     q = q.replace(/\bbenchmark_cagr\b(?!\s+AS)/gi, "b.cagr");
     q = q.replace(/AS\s+b\.cagr/gi, "AS benchmark_cagr");
-    q = q.replace(/\bs\./gi, "m.");
+    // q = q.replace(/\bs\./gi, "m.");
+    q = q.replace(/\bf\.cagr\b/gi, "m.cagr");
+    if (
+        q.includes("m.cagr") &&
+        !q.includes("fund_master_metrics")
+      ) {
+        q = q.replace(
+          /JOIN funds f ON it\.fund_id = f\.fund_id/i,
+          `JOIN funds f ON it.fund_id = f.fund_id
+          JOIN fund_master_metrics m
+          ON f.fund_id = m.fund_id`
+        );
+      }
     // fix invalid alias patterns
     q = q.replace(/AS\s+\w+\.\w+/gi, "AS benchmark_cagr");
     // Fix wrong column names for holdings
