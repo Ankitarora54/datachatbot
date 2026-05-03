@@ -182,3 +182,26 @@
     border-right-color: var(--border);
   }
 }
+
+.login-container {
+  width: 350px;
+  margin: 100px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 30px;
+  border-radius: 12px;
+  background: #1e1e1e;
+}
+
+.login-container input {
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+}
+
+.login-container button {
+  padding: 12px;
+  cursor: pointer;
+}
+

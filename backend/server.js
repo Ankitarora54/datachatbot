@@ -1,8 +1,9 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-
-
+console.log("JWT SECRET:",
+  process.env.JWT_SECRET
+);
 const app = express();
 app.use(cors({origin: [
     "http://localhost:5173",
@@ -35,7 +36,10 @@ app.listen(PORT, () => {
   
 });
 
+const authRoutes = require("./routes/auth");
+const authMiddleware = require("./middleware/authMiddleware");
 const queryRoute = require("./routes/query");
-app.use("/query", queryRoute);
+app.use("/auth", authRoutes);
+app.use("/query", authMiddleware, queryRoute);
 
 // app.listen(5000, () => console.log("Server running on 5000"));

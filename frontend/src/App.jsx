@@ -1,19 +1,61 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ChatBox from "./ChatBox.jsx";
 import ResultTable from "./ResultTable.jsx";
 import ChartView from "./ChartView.jsx";
+import Login from "./Login";
+
 
 function App() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    if (token) {
+      setIsAuthenticated(true);
+    }
+  }, []);
+
+  // show login first
+  if (!isAuthenticated) {
+    return (
+      <Login
+        setIsAuthenticated={setIsAuthenticated}
+      />
+    );
+  }
 
   return (
+    <div style={styles.page}>
+      <div style={styles.topBar}>
+        <button
+          style={styles.logoutButton}
+          onClick={() => {
+            localStorage.removeItem("token");
+            window.location.reload();
+          }}
+        >
+          Logout
+        </button>
+      </div>
     <div style={styles.container}>
       <div style={styles.left}>
         <h2>💬 Ask Your Data</h2>
         <ChatBox setData={setData} setLoading={setLoading} data={data} />
       </div>
-
+      {/* <div style={styles.topBar}>
+          <button
+            style={styles.logoutButton}
+            onClick={() => {
+              localStorage.removeItem("token");
+              window.location.reload();
+            }}
+          >
+            Logout
+          </button>
+        </div> */}
       <div style={styles.right}>
         {loading && <p>⏳ Generating...</p>}
 
@@ -45,11 +87,35 @@ function App() {
           </>
         )}
       </div>
+      </div>
     </div>
   );
 }
 
 const styles = {
+  page: {
+  height: "100vh",
+  background: "#f5f7fb",
+},
+
+topBar: {
+  width: "100%",
+  display: "flex",
+  justifyContent: "flex-end",
+  padding: "15px 25px 0px 25px",
+  boxSizing: "border-box",
+},
+
+logoutButton: {
+  padding: "10px 18px",
+  borderRadius: "10px",
+  border: "none",
+  background: "#111827",
+  color: "#fff",
+  cursor: "pointer",
+  fontWeight: "600",
+  transition: "0.3s ease",
+},
   container: {
     display: "flex",
     height: "100vh",
@@ -95,27 +161,3 @@ const styles = {
 };
 
 export default App;
-
-// import { useState } from "react";
-// import ChatBox from "./ChatBox";
-// import ResultTable from "./ResultTable";
-// import ChartView from "./ChartView";
-
-// // function App() {
-// //   return <h1>App is working</h1>;
-// // }
-
-// function App() {
-//   const [data, setData] = useState(null);
-  
-//   return (
-//     <div>
-//       <h1>Chat with Data</h1>
-//       <ChatBox setData={setData} />
-//       <ResultTable data={data} />
-//       <ChartView data={data} />
-//     </div>
-//   );
-// }
-
-// export default App;

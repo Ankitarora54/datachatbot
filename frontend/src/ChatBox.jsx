@@ -12,11 +12,18 @@ export default function ChatBox({ setData, setLoading, data  }) {
 
     try {
       // const res = await axios.post("/query", {
+      const token = localStorage.getItem("token");
       console.log("API URL:", API);
       const res = await axios.post(`${API}/query`, {
         question: input,
         sessionId: "user1",
-      });
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
       setData(res.data);
     } catch (err) {
@@ -29,6 +36,15 @@ export default function ChatBox({ setData, setLoading, data  }) {
 
   return (
     <div>
+      {/* <button
+        style={styles.logoutButton}
+        onClick={() => {
+          localStorage.removeItem("token");
+          window.location.reload();
+        }}
+      >
+        Logout
+    </button> */}
       <textarea
         rows="4"
         style={styles.input}
@@ -45,6 +61,16 @@ export default function ChatBox({ setData, setLoading, data  }) {
 }
 
 const styles = {
+  // logoutButton: {
+  // width: "100%",
+  // padding: "10px",
+  // background: "#ef4444",
+  // color: "#fff",
+  // border: "none",
+  // borderRadius: "8px",
+  // cursor: "pointer",
+  // marginBottom: "15px",
+  // },
   input: {
     width: "100%",
     padding: "10px",
@@ -62,35 +88,3 @@ const styles = {
     cursor: "pointer",
   },
 };
-
-// import { useState } from "react";
-// import axios from "axios";
-
-// export default function ChatBox({ setData }) {
-//   const [input, setInput] = useState("");
-
-//   const send = async () => 
-//     {
-//       try
-//       {
-//         const res = await axios.post(`${import.meta.env.VITE_API_URL}/query`, {
-//           question: input,
-//           sessionId: "user1",
-//         });
-
-//         setData(res.data);
-//       }
-//       catch(err)
-//       {
-//         console.error("FRONTEND ERROR:", err.response?.data);
-//         alert("An error occurred: " + err.message);
-//       }
-//     };
-
-//   return (
-//     <div>
-//       <input value={input} onChange={e => setInput(e.target.value)} />
-//       <button onClick={send}>Ask</button>
-//     </div>
-//   );
-// }
