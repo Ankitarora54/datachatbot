@@ -1,15 +1,12 @@
 const express = require("express");
 const router = express.Router();
 const { executeWithAutoFix } = require("../utils/autofix");
-// const { generateSQL, fixSQL } = require("../ai");
 const { safeGenerateSQL,fixSQL  } = require("../ai");
 console.log("fixSQL type:", typeof fixSQL);
 const { queryDB } = require("../db");
 const { isSafeQuery } = require("../utils/validator");
 const { getMemory, saveMemory } = require("../memory");
 const { normalizeQuery } = require("../utils/normalizer");
-// const { normalizeBenchmark } = require("../utils/normalizer");
-// const { fixSQLWithParser } = require("../utils/sqlFixer");
 
 function shouldUseParser(sql) {
   const q = sql.toLowerCase();
@@ -21,15 +18,6 @@ function shouldUseParser(sql) {
     q.includes("group by")
   );
 }
-
-// function normalizeQuery(q) {
-//   return q
-//     .replace(/TOP\s+(\d+)/gi, "LIMIT $1")
-//     .replace(/GETDATE\(\)/gi, "NOW()")
-//     .replace(/ISNULL\(/gi, "COALESCE(")
-//     .replace(/`/g, "")
-//     .replace(/\[|\]/g, "");
-// }
 
 function validateSQL(sql) {
   let q = sql;
@@ -95,24 +83,6 @@ function validateSQL(sql) {
       // q = q.replace(/order\s+by/i, `ORDER BY LIMIT $1`);
   }
 
-
-  
-
-  // if (q.toLowerCase().includes("benchmark")) 
-  //   {
-  //     console.log("🔧 Fixing benchmark column usage");
-
-  //     // force correct column
-  //     q = q.replace(/\b\w*sp\w*_?cagr\b/gi, "b.cagr");
-
-  //     // ensure benchmark filter exists
-  //     if (!q.toLowerCase().includes("benchmark_name")) {
-  //       q += " AND b.benchmark_name = 'S&P 500'";
-  //       }
-  //  }
-  //  q = q.replace(/join\s+benchmark_comparison_view\s+\w+\s+on\s+[^\n]+/gi,
-  // "CROSS JOIN benchmark_comparison_view b"
-  //   );
     q = q.replace(/s_and_p_500_cagr|sp500_cagr|benchmark_cagr/gi,"b.cagr");
     q = q.replace(/benchmark_name\s*=\s*'NIFTY'/gi,"benchmark_name LIKE '%NIFTY%'");
     // only fix usage in WHERE or SELECT expressions, not aliases
@@ -153,16 +123,12 @@ function validateSQL(sql) {
     q.replace(/`/g, "");
     q.replace(/\[|\]/g, "");
     q = q.replace(/NVARCHAR/gi, "TEXT");
-    // fix wrong alias usage
-    // q = q.replace(/s\.sharpe_ratio/gi, "m.sharpe_ratio");
-
-    // OR better → redirect to correct view
     if (q.includes("sharpe_ratio") && q.includes("fund_master_metrics")) {
       q = q.replace(
         /fund_master_metrics\s+m/gi,
         "fund_sharpe_view s"
       );
-      // q = q.replace(/m\./gi, "s.");
+
     }
     if (q.includes("concentration_index > 10") || q.includes("concentration_index > 20")
         || q.includes("concentration_index > 0.20")  ) {
@@ -175,15 +141,6 @@ function validateSQL(sql) {
     throw new Error("Only SELECT queries are allowed");
   }
 
-  // Prevent multiple statements
-  // if (q.includes(";")) {
-  //   throw new Error("Multiple SQL statements not allowed");
-  // }
-
-  // if (q.split(";").filter(s => s.trim().length > 0).length > 1) {
-  //     throw new Error("Multiple SQL statements not allowed");
-  //     }
-  
   q = q.trim();
 
   // remove trailing semicolon
@@ -201,14 +158,10 @@ function validateSQL(sql) {
   }
   if (q.includes("benchmark_comparison_view") && q.includes("LIKE"))
      {
-  // already correct → DO NOTHING
+
   return q;
   }
   const lower = q.toLowerCase();
-
-  // if (/\btop\s+\d+/i.test(q) && !/\blimit\s+\d+/i.test(q)) {
-  //   throw new Error("Use LIMIT instead of TOP");
-  // }
 
   if (lower.includes("getdate()")) {
     throw new Error("Use NOW()");
@@ -217,10 +170,6 @@ function validateSQL(sql) {
   if (lower.includes("isnull")) {
     throw new Error("Use COALESCE");
   }
-
-  // if (lower.includes("nvarchar")) {
-  //   throw new Error("Invalid type");
-  // }
 
   const usesDiversification = q.includes("diversification_score");
   const hasDiversificationView = q.includes("fund_diversification_view");
@@ -236,16 +185,6 @@ function validateSQL(sql) {
     );
   }
 
-  // if (
-  // q.includes("diversification_score") &&
-  // q.includes("fund_risk_metrics") &&
-  // !q.includes("fund_diversification_view")
-  // ) {
-  // throw new Error(
-  //   "Wrong view: diversification_score must come from fund_diversification_view"
-  // );
-  // }
-  
   return q;
 }
 
@@ -307,25 +246,13 @@ router.post("/", async (req, res) => {
     }
 
     let normalizedSQL = normalizeQuery(fix?.fixed_sql || aiRes.sql);
-    // if (!normalizedSQL.toLowerCase().includes("limit")) {normalizedSQL += " LIMIT 50";}
+
     if (!/limit\s+\d+/i.test(normalizedSQL)) {normalizedSQL += " LIMIT 50";}
     let finalSQL = normalizedSQL;
-    // let finalSQL;
-
-    // if (shouldUseParser(normalizedSQL)) {
-    //   try {
-    //     finalSQL = fixSQLWithParser(normalizedSQL);
-    //   } catch {
-    //     finalSQL = normalizedSQL;
-    //   }
-    // } else {
-    //   console.log("ℹ️ Skipping parser for complex SQL");
-    //   finalSQL = normalizedSQL;
-    // }
 
     result  = await executeWithAutoFix(finalSQL,question,validateSQL);
     
-    // const insight =aiRes.insight || generateInsight(result.data || result);
+
     const insight = `${aiRes.insight || ""}${generateInsight(result.data || result)}`;
 
     saveMemory(sessionId, [
@@ -333,13 +260,6 @@ router.post("/", async (req, res) => {
       { role: "user", content: question },
       { role: "assistant", content: aiRes.sql },
     ]);
-    
-    // res.json({
-    // query: aiRes.sql,
-    // explanation: aiRes.explanation,
-    // insight: aiRes.insight,
-    // result,
-    // });
 
     res.json({
     query: result.sqlQuery,
@@ -349,12 +269,6 @@ router.post("/", async (req, res) => {
     retries: result.retries,
     });
 
-    // res.json({
-    //   query: execution.sqlQuery,
-    //   explanation: aiRes.explanation,
-    //   result: execution.data,
-    //   retries: execution.retries,
-    // });
 
   } catch (err) {
     console.error("BACKEND ERROR:", err);
