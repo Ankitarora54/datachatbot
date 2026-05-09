@@ -17,18 +17,16 @@ ChartJS.register(
 );
 
 const colors = [
-  "#6366f1", // indigo
-  "#22c55e", // green
-  "#f59e0b", // amber
-  "#ef4444", // red
-  "#3b82f6", // blue
-  "#8b5cf6", // purple
+  "#1f5d4d",
+  "#c99b35",
+  "#5b7f95",
+  "#8a6f3d",
+  "#427a63",
+  "#9b5750",
 ];
 
 export default function ChartView({ data }) {
   if (!data || !data.result.length) return null;
-
-  const keys = Object.keys(data.result[0]);
 
   const chartData = {
   labels: data.result.map((row) => row[Object.keys(row)[0]]),
@@ -44,18 +42,37 @@ export default function ChartView({ data }) {
     },
   ],
 };
-const options = {
-  plugins: {
-    legend: { display: false },
-  },
-  scales: {
-    x: {
-      grid: { display: false },
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: "#13231f",
+        titleColor: "#ffffff",
+        bodyColor: "#d8efe6",
+        padding: 12,
+        cornerRadius: 8,
+      },
     },
-    y: {
-      grid: { color: "#e5e7eb" },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: {
+          color: "#60706b",
+          font: { size: 11, weight: 600 },
+        },
+      },
+      y: {
+        border: { display: false },
+        grid: { color: "rgba(31, 61, 52, 0.1)" },
+        ticks: {
+          color: "#60706b",
+          font: { size: 11, weight: 600 },
+        },
+      },
     },
-  },
-};
+  };
+
   return <Bar data={chartData} options={options} />;
 }

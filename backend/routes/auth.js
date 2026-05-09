@@ -3,12 +3,6 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 
 const router = express.Router();
-console.log(process.env.JWT_SECRET);
-// demo user
-// const demoUser = {
-//   email: "admin@test.com",
-//   password: bcrypt.hashSync("admin123", 10),
-// };
 
 const demoUser = {
   email: "testuser@test.com",

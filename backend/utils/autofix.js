@@ -3,15 +3,7 @@ const { queryDB } = require("../db");
 
 async function executeWithAutoFix(sqlQuery, question, validateSQL) {
   let currentSQL = validateSQL(sqlQuery);
-  // if (
-  //   currentSQL.includes("fund_sharpe_view") &&
-  //   currentSQL.includes("s.sharpe_ratio") &&
-  //   currentSQL.includes("ORDER BY s.sharpe_ratio")
-  // ) {
-  //   console.log("✅ Query already correct, skipping ALL fixes");
-  //   const result = await queryDB(currentSQL);
-  //   return result;
-  // }
+  
   for (let i = 0; i < 3; i++) {
     currentSQL = currentSQL.replace(/`/g, "");
     try {

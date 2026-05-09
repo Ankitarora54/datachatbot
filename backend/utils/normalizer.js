@@ -1,7 +1,7 @@
 const sectorMap = {
-  IT: "Information Technology",
-  Tech: "Information Technology",
-  Technology: "Information Technology",
+  IT: "Technology",
+  Tech: "Technology",
+  Technology: "Technology",
   Pharma: "Healthcare",
   Banking: "Financials",
   Finance: "Financials",

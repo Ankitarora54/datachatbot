@@ -1,9 +1,6 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-console.log("JWT SECRET:",
-  process.env.JWT_SECRET
-);
 const app = express();
 app.use(cors({origin: [
     "http://localhost:5173",
@@ -32,8 +29,7 @@ app.get("/test-db", async (req, res) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log("DB URL:", process.env.DATABASE_URL);
-  
+   
 });
 
 const authRoutes = require("./routes/auth");
@@ -41,5 +37,3 @@ const authMiddleware = require("./middleware/authMiddleware");
 const queryRoute = require("./routes/query");
 app.use("/auth", authRoutes);
 app.use("/query", authMiddleware, queryRoute);
-
-// app.listen(5000, () => console.log("Server running on 5000"));

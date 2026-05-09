@@ -8,8 +8,8 @@ const pool = new Pool({
   family: 4,
 });
 
-async function queryDB(query) {
-  const result = await pool.query(query);
+async function queryDB(query,params = []) {
+  const result = await pool.query(query, params);
   return result.rows;
 }
 

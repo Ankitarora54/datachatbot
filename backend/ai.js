@@ -3,333 +3,344 @@ const { getSchema } = require("./schema");
 const { formatSchema } = require("./formatSchema");
 const { loadSchema } = require("./utils/schemaLoader");
 const { ChatOpenAI } = require("@langchain/openai");
-
+const { detectRelevantTables } = require("./utils/schemaSelector");
 const {HumanMessage,SystemMessage,} = require("@langchain/core/messages");
+const { planQuery } = require("./utils/queryPlanner");
+const { enhanceQuestion } = require("./utils/queryEnhancer");
+const { createLLM } = require("./utils/createLLM");
 const client = new OpenAI({apiKey: process.env.OPENAI_API_KEY,});
-// const llm = new ChatOpenAI({model: model,apiKey: process.env.OPENAI_API_KEY,});
+
+
 async function generateSQL(userQuery, history = [], model = "gpt-4o-mini") {
   const schema = await getSchema();
-  // const schemaRaw = await loadSchema();
-  const schemaText = formatSchema(schema);
-  // const llm = new ChatOpenAI({model,apiKey: process.env.OPENAI_API_KEY,temperature: 0,});
+  const relevantTables = detectRelevantTables(userQuery);
+ 
+  const filteredSchema = Object.fromEntries(
+    Object.entries(schema).filter(([table]) =>
+      relevantTables.includes(table)
+    )
+  );
+  const schemaText = formatSchema(filteredSchema);
+  const plan = await planQuery(userQuery,schemaText,model);
+  if (plan.confidence < 0.7) {console.log("⚠️ Low confidence query plan");}
   const llmConfig = {model, apiKey: process.env.OPENAI_API_KEY,};
   if (model.startsWith("gpt-4")) {llmConfig.temperature = 0; }
   const llm = new ChatOpenAI(llmConfig);
 
-  const messages = [ new SystemMessage(`
-    You are a SQL Server expert.
+  const systemPrompt = `
+        You are a PostgreSQL expert.
 
-      content:
-      DATABASE SCHEMA:
-      ${schemaText}
+        Generate SQL queries using ONLY the provided schema.
 
-      Relationships:
-      - fund_aum.fund_id → funds.fund_id
-      - nav_history.fund_id → funds.fund_id
-      - transactions.fund_id → funds.fund_id
-      - investor_transactions.fund_id → funds.fund_id
-      - investor_transactions.investor_id → investors.investor_id
-      - holdings.fund_id → funds.fund_id
-      - investors.investor_id → investor_transactions.investor_id
-        → investor_transaction using investor_id
-      - investor_transaction
-        → funds using fund_id
-      - funds
-          → holdings using fund_id
-      If user asks about an investor:
-        - ALWAYS use investor and investor_transaction tables
-        - NEVER search investor names inside holdings.asset_name
+        RULES:
+        - PostgreSQL syntax only
+        - Return ONLY valid JSON
+        - No markdown
+        - Only SELECT queries
+        - Use LIMIT instead of TOP
+        - Use exact schema columns
+        - Avoid unnecessary joins
+        - Prefer simpler queries
+        - Never invent columns or tables
+        
+        IMPORTANT:
+        - Rank entities using planner-selected metric
+        - Ranking entity and display entity may be different
+        - NEVER invent financial formulas
+        - Use existing schema metrics directly
+        - Prefer simplest correct SQL
+        - Prefer analytical views over raw calculations
+        - Avoid unnecessary CTEs
+        - Avoid NAV reconstruction unless explicitly required
+        - Always use metric from metric_table
+        - Never assume metrics exist in base tables
+        - Use schema-defined analytical views for financial metrics
+        - For investor questions:
+          use investors + investor_transactions
+        - For sector exposure:
+          use sector_exposure_view
+        - For performance/risk:
+          prefer fund_master_metrics
+        - Use meaningful aliases
+          - funds = fd
+          - fund_master_metrics = fmm
+          - fund_sharpe_view = fs
+          - investors = i
+          - investor_transactions = it
+        - Never reuse aliases for different entities
+        - If ranking/filtering/comparing entities:
+          ALWAYS include the metric used for comparison
+          ALWAYS include supporting columns
+          NEVER return only names
+        - Benchmarks are NOT funds
+        - Use benchmark_comparison_view for benchmark comparisons
+        - Never search benchmark names inside funds table
+        - Use benchmark_name LIKE '%NIFTY%'
+        - For comparison queries:
+          - ALWAYS display benchmark metric
+          - ALWAYS display entity metric
+          - ALWAYS calculate comparison delta
+          - NEVER only filter without showing comparison evidence
+        - Use fuzzy matching for fund names
+          - Prefer:
+            ILIKE '%ICICI%'
+        - Avoid exact string equality for user-entered names
+        
+        CRITICAL ENTITY RULES:
 
-      TABLES:
-      - asset_country_map(asset_name, country)
-      - benchmarks(benchmark_id, value, date, name)
-      - fund_aum(aum_id, fund_id, aum, report_date)
-      - fund_master_metrics(fund_id, fund_name, net_flow, avg_nav, risk, risk_adjusted_return, total_assets, concentration_index, diversification_score, cagr)
-      - fund_performance(fund_name, start_nav, end_nav, days, cagr, volatility)
-      - fund_risk_metrics(fund_id, fund_name, net_flow, avg_nav, risk, risk_adjusted_return)
-      - funds(fund_id, fund_name, country, inception_date)
-      - holdings(holding_id, fund_id, asset_name, sector, weight, report_date)
-      - investor_transactions(txn_id, fund_id, txn_type, amount, txn_date, inv_txn_id, investor_id,units)
-      - investors(investor_id, investor_name, country, investor_type)
-      - nav_history(nav_id, fund_id, nav_value, report_date)
-      - stock_prices(price_id, asset_name, price, price_date)
-      - transactions(txn_id, fund_id, txn_type, amount, txn_date)
+        Entity type determines the ONLY valid table.
 
-      VIEWS:
-      - benchmark_comparison_view(benchmark_name, cagr)
-      - country_exposure_view(fund_id, country, country_exposure)
-      - fund_diversification_view(fund_id, fund_name, total_assets, concentration_index, diversification_score)
-      - fund_performance_view(fund_id, cagr)
-      - fund_risk_metrics_view(fund_id, fund_name, net_flow, avg_nav, risk, risk_adjusted_return)
-      - fund_sharpe_view(fund_id, fund_name, cagr, risk, sharpe_ratio)
-      - sector_exposure_view(fund_id, fund_name, sector, sector_weight, weight)
-      - sector_summary_view(fund_id, fund_name, sector, sector_weight)
+        If entity_type = investor:
+        - MUST use investors.investor_name
+        - MUST join investor_transactions
+        - MUST NOT query funds.fund_name
+        - MUST NOT treat investor names as funds
 
-      STRICT RULES:
-      - Use PostgreSQL syntax ONLY
-      - DO NOT use OFFSET FETCH (Postgres uses LIMIT)
-      - Never use FETCH NEXT
-      - Never use OFFSET ROWS
-      - Never use SQL Server syntax
-      - JOIN clauses must come before WHERE
-      - NEVER use:
-        TOP, GETDATE(), ISNULL, NVARCHAR
-      - ALWAYS use:
-        LIMIT instead of TOP
-        NOW() instead of GETDATE()
-        COALESCE instead of ISNULL
-      - Return ONLY valid JSON
-      - Do NOT use code blocks (no \`\`\`)
-      - Do NOT use string concatenation (+)
-      - SQL must be a single string
-      - Always use proper JOINs using these relationships
-      - Use SIMPLE SQL only
-      - Avoid CTEs unless necessary
-      - Do NOT use advanced functions like STDDEV_P
-      - Prefer STDEV for SQL Server
-      - Avoid nested CTE chains
-      - Avoid hallucinating columns or tables
+        If entity_type = fund:
+        - MUST use funds.fund_name
 
-      IMPORTANT:
-      - Use exact column names from schema
-      - Use LIKE '%keyword%' instead of exact match for fund_name
-      - Do NOT assume exact names
-      - DO NOT invent column names
-      - Use consistent table aliases
-      - Do not reference aliases that are not defined in JOIN clauses
-      - Validate aliases before generating final SQL
-      - Prefer fund_master_metrics for analytics
-      - Use consistent table aliases
-      - If alias is "nav", NEVER use "n"
-      - NEVER join large tables directly
-      - ALWAYS aggregate before joining
-      - If fund_risk_metrics exists, ALWAYS use it
-      - DO NOT recompute risk manually
-      - fund_risk_metrics already contains:
-          net_flow, avg_nav, risk, risk_adjusted_return
-      - ALWAYS use risk_adjusted_return directly
-      - DO NOT recompute it
-      - DO NOT join nav_history and transactions together
-      - NEVER use = (SELECT ...)
-      - Use JOIN or IN instead
-      - Use OFFSET FETCH only if needed
-      - DO NOT recompute metrics manually
-      - Prefer simple SELECT queries from views
-      - Column mappings:
-      fund_risk_metrics:
-        - risk
-        - avg_nav
-        - risk_adjusted_return
-      fund_diversification_view:
-        - diversification_score
-        - concentration_index
-        - total_assets
-      - NEVER use columns from one view in another
-      - If query needs both risk AND diversification:
-        JOIN fund_risk_metrics AND fund_diversification_view on fund_id
-      - Use fund_master_metrics whenever possible
-      - fund_master_metrics already contains:
-        risk, diversification_score, risk_adjusted_return
-      - ALWAYS prefer fund_master_metrics over joining multiple tables
-        diversification_score, concentration_index, total_assets
-      - DO NOT join fund_risk_metrics or fund_diversification_view if fund_master_metrics can be used
-      sector_exposure_view columns:
-        - fund_id
-        - fund_name
-        - sector
-        - sector_weight
-      DO NOT use:
-        - weight
-        - exposure_weight
-      ALWAYS use: sector_weight
-        - sector_weight is stored as percentage (0–100)
-        - NOT decimal (0–1)
-        - Use 40 instead of 0.4 for 40%
-      - sector_weight exists ONLY in sector_exposure_view
-      - holdings has ONLY weight (not sector_weight)
-      - asset_country_map joins via asset_name, not fund_id
-      - Sector names are full names (e.g., "Information Technology")
-      - DO NOT use abbreviations like "IT"
-      - Use LIKE '%Technology%' if unsure
-      - Technology, Healthcare, Energy, Financials are sectors
-        - Do NOT search them inside holdings.asset_name
-        - Use sector_exposure_view for sector-related questions
-      - fund_master_metrics contains:
-        risk, diversification_score, risk_adjusted_return, cagr
-      - ALWAYS use fund_master_metrics for performance queries
-      - benchmark_comparison_view does NOT have fund_id
-      - NEVER join it using fund_id
-      - Use CROSS JOIN when comparing funds with benchmarks
-      - benchmark_comparison_view has ONLY:
-        benchmark_name, cagr
-      - NEVER create columns like:
-        s_and_p_500_cagr, benchmark_cagr
-      - Always filter using:
-        benchmark_name = 'S&P 500'
-      - Do NOT assume funds outperform benchmarks
-      - If strict comparison returns no data:
-        → fallback to ORDER BY instead of filtering
-      - concentration_index is stored between 0 and 1
-      - DO NOT use values like > 10
-      - Use decimal thresholds like > 0.10
-      - holdings table columns:
-        asset_name, sector, weight, fund_id, report_date
-      - DO NOT use:
-        holding_name, holding_value, value
-      - Use:
-        asset_name (for name)
-        weight (for value)
-      - holdings has column: weight (NOT sector_weight)
-      - sector_exposure_view already contains sector_weight
-      - NEVER join holdings with sector_exposure_view on sector
-      - Use either holdings OR sector_exposure_view, not both
-      - country exposure is derived using asset_country_map
-      - JOIN:
-        holdings → asset_country_map → country
-      - DO NOT use country from sector_exposure_view
-      - benchmark_name values may vary (e.g., 'NIFTY 50')
-      - ALWAYS use LIKE '%NIFTY%' instead of '='
-      - NEVER use CROSS JOIN unless explicitly required
-      - benchmark_comparison_view has columns: benchmark_name, cagr
-      - benchmark_comparison_view has NO fund_id
-      - benchmark is global (not per fund)
-      - DO NOT join benchmark using fund_id
-      - Use:
-        JOIN benchmark_comparison_view b 
-        ON b.benchmark_name LIKE '%NIFTY%'
-      - sharpe_ratio exists in fund_sharpe_view (NOT in fund_master_metrics)
-      - use:
-        JOIN fund_sharpe_view s ON f.fund_id = s.fund_id
-      - To answer investor-related questions, ALWAYS use investor and investor_transaction tables
-        - Use JOIN with funds to get fund_name
-        - Use CASE WHEN for BUY/SELL calculations
+        If entity_type = asset:
+        - MUST use holdings.asset_name
 
+        Violation of these rules produces invalid SQL.
 
-      Examples:
-      User: safest and most diversified fund
-      Correct SQL:
-      SELECT TOP 1 
-        f.fund_name,
-        r.risk,
-        d.diversification_score
-      FROM funds f
-      JOIN fund_risk_metrics r ON f.fund_id = r.fund_id
-      JOIN fund_diversification_view d ON f.fund_id = d.fund_id
-      ORDER BY r.risk ASC, d.diversification_score DESC
+        DATE FORMATTING RULES:
+        - Always return date columns as DATE only
+        - Cast timestamps using:
+          column::date
+        - Never return timestamp values unless explicitly requested
+        For all columns ending in:
+          - _date
+          - date
+          - timestamp
+        return them as:
+        column::date
 
-      User: What holdings does Disney Limited have?
-      Correct SQL:
-      SELECT
-          i.investor_name,
-          f.fund_name,
-          h.asset_name,
-          h.weight
-      FROM investor i
-      JOIN investor_transaction it
-          ON i.investor_id = it.investor_id
-      JOIN funds f
-          ON it.fund_id = f.fund_id
-      JOIN holdings h
-          ON f.fund_id = h.fund_id
-      WHERE i.investor_name LIKE '%Disney%'
+        DATABASE SCHEMA:
+        ${schemaText}
 
-      INSIGHT RULES:
-      - Compare fund CAGR vs benchmark
-      - Identify outperforming and underperforming funds
-      - Detect sector concentration risk
-      - Highlight anomalies
-      - Highlight top performers
-      - Identify risk (high volatility, low diversification)
-      - Detect concentration (sector > 20%)
-      - Compare vs benchmark
-      - Use simple business language
-
-      Format EXACTLY:
-      {
-        "sql": "SELECT ...",
-        "explanation": "...",
-        "insight": "..."
-      }
-
-      Return JSON:
-      {
-      "sql": "...",
-      "explanation": "..."
-      }
-          `),
-          ...history.map(
+        Return EXACTLY:
+        {
+          "sql": "...",
+          "explanation": "...",
+          "insight": "..."
+        }
+        `;
+  // const messages = [ new SystemMessage(` `),
+  const messages = [new SystemMessage(systemPrompt),
+          ...(Array.isArray(history)
+           ? history.map(
             (h) =>
               new HumanMessage(
                 typeof h.content === "string"
                   ? h.content
                   : JSON.stringify(h.content)
               )
-  ),
-  new HumanMessage(userQuery),
+           )
+           : []
+        ),
+  // new HumanMessage(userQuery),
+  // new HumanMessage(enhanceQuestion(userQuery)),
+  new HumanMessage(`
+    USER QUESTION:
+    ${userQuery}
+
+    QUERY PLAN:
+
+    Metric:
+    ${plan.metric}
+
+    Metric Table:
+    ${plan.metric_table}
+
+    Benchmark:
+    ${plan.benchmark || "None"}
+
+    Benchmark Table:
+    ${plan.benchmark_table || "None"}
+
+    Benchmark Metric:
+    ${plan.benchmark_metric_column || "None"}
+
+    Comparison Required:
+    ${plan.comparison_required}
+
+    Comparison Entity:
+    ${plan.comparison_entity}
+
+    Delta Column:
+    ${plan.delta_column}
+
+    Ranking Entity:
+    ${plan.ranking_entity}
+
+    Display Entity:
+    ${plan.display_entity}
+
+    Entity Type:
+    ${plan.entity_type || "unknown"}
+
+    Supporting Columns:
+    ${plan.supporting_columns.join(", ")}
+
+    Business Logic:
+    ${plan.business_logic}
+
+    Ownership Logic:
+    ${plan.ownership_logic}
+
+    IMPORTANT:
+    - Use the metric selected in QUERY PLAN
+    - Include supporting columns
+    - Include ranking metric in final output
+
+    CRITICAL ENTITY RULES:
+
+    If Entity Type = investor:
+    - MUST use investors.investor_name
+    - MUST join investor_transactions
+    - MUST NOT query funds.fund_name
+
+    If Entity Type = fund:
+    - MUST use funds.fund_name
+
+    If Entity Type = asset:
+    - MUST use holdings.asset_name
+
+    Never assume all entities are funds.
+    `),
+
 ];
 
-const res = await llm.invoke(messages, {
+// const res = await llm.invoke(messages, {
+const res = await llm.invoke(messages, {response_format: { type: "json_object" },
   metadata: {module: "sql_generation",feature: "fundchatbot",},
-});
+  });
       
     // const raw = res.choices[0].message.content;
     const raw = res.content;
 
     console.log("AI RAW RESPONSE:", raw);
-
-    // 🧹 Clean markdown
-    let cleaned = raw
-    .replace(/```json/g, "")
-    .replace(/```/g, "")
-    .trim();
-
-    // 🧠 Case 1: JSON response
+    const cleaned = raw.trim();
+    
     if (cleaned.startsWith("{")) {
-    try {
-        return JSON.parse(cleaned);
-    } catch (e) {
-        console.error("❌ JSON parse failed:", cleaned);
+
+  try {
+
+    const parsed = JSON.parse(cleaned);
+    // SQL cleanup fixes
+    if (parsed.sql) {
+
+      parsed.sql = parsed.sql
+        .replace(/rankFROM/gi, "rank FROM")
+        .replace(/LIMITFROM/gi, "LIMIT FROM")
+        .replace(/DESCFROM/gi, "DESC FROM")
+        .replace(/NULLSLAST/gi, "NULLS LAST")
+        .replace(/ASrank/gi, "AS rank")
+        .replace(/FROMfunds/gi, "FROM funds");
+    }
+
+     return parsed;
+
+      } catch (e) {
+
+        console.error(
+          "❌ JSON parse failed:",
+          cleaned
+        );
+
         throw new Error("Invalid JSON from AI");
+      }
     }
-    }
+
 
     // 🧠 Case 2: Raw SQL response
-    if (cleaned.toLowerCase().startsWith("select")) {
-    return {
-        sql: cleaned,
-        explanation: "Generated SQL query based on your request.",
+    // if (cleaned.toLowerCase().startsWith("select")) {
+    // return {
+    //     sql: cleaned,
+    //     explanation: "Generated SQL query based on your request.",
+    // };
+    // }
+
+    if (
+  cleaned.toLowerCase().startsWith("select") ||
+  cleaned.toLowerCase().startsWith("with")
+    ) {
+
+  const fixedSQL = cleaned
+    .replace(/rankFROM/gi, "rank FROM")
+    .replace(/LIMITFROM/gi, "LIMIT FROM")
+    .replace(/DESCFROM/gi, "DESC FROM")
+    .replace(/NULLSLAST/gi, "NULLS LAST")
+    .replace(/ASrank/gi, "AS rank")
+    .replace(/FROMfunds/gi, "FROM funds");
+
+  return {
+    sql: fixedSQL,
+    explanation:
+      "Generated SQL query based on your request.",
     };
-    }
+  }
 
     // ❌ Unknown format
     throw new Error("AI returned unexpected format:\n" + cleaned);
     
 }
 
-async function safeGenerateSQL(question, history=[], model = "gpt-4o-mini") {
-  const schemaText = "";
+async function safeGenerateSQL(
+  question,
+  history = [],
+  model = "gpt-4o-mini"
+) {
+
   try {
-    return await generateSQL(question, history, model);
+
+    return await generateSQL(
+      question,
+      history,
+      model
+    );
+
   } catch (err) {
+
     console.log("⚠️ First attempt failed, retrying...");
 
-    // retry with stricter instruction
     return await generateSQL(
-      question + "\nIMPORTANT: Return ONLY valid JSON. No markdown. No plain SQL.",
-      schemaText
+      question,
+      history,
+      model
     );
   }
 }
 
-async function fixSQL(badSQL, error, question) {
+
+async function fixSQL(badSQL, error, question, model = "gpt-4o-mini") {
+  const schema = await getSchema();
+  const schemaText = formatSchema(schema);
+  
+  const llm = createLLM(model);
   const res = await llm.invoke(
   [
         new SystemMessage(`
-    Fix PostgreSQL query.
+          You are a PostgreSQL SQL repair expert.
+          Fix the SQL query using the database schema.
 
-    Return JSON:
-    { "fixed_sql": "...", "reason": "..." }
-        `),
+          DATABASE SCHEMA:
+          ${schemaText}
+
+          RULES:
+          - Preserve business intent
+          - Use only existing columns
+          - Use PostgreSQL syntax
+          - Return ONLY valid JSON
+
+          FORMAT:
+          {
+            "fixed_sql": "...",
+            "reason": "..."
+          }
+
+            `),
 
         new HumanMessage(`
     Question: ${question}
