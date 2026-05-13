@@ -7,9 +7,16 @@ import Login from "./Login";
 function App() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(() =>
-    Boolean(localStorage.getItem("token"))
-  );
+
+  const DEMO_MODE = true;
+  const [isAuthenticated, setIsAuthenticated] =
+    useState(
+      DEMO_MODE ||
+      Boolean(localStorage.getItem("token"))
+    );
+  // const [isAuthenticated, setIsAuthenticated] = useState(() =>
+  //   Boolean(localStorage.getItem("token"))
+  // );
   const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
 
   useEffect(() => {
