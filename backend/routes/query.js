@@ -34,7 +34,7 @@ function validateSQL(q) {
   // remove trailing semicolons ONLY
 
   q = q.replace(/;+$/g, "").trim();
-
+  q = q.replace(/(?<!:):[a-zA-Z_]\w*/g,"1");
   const lower = q.toLowerCase();
 
   // only allow SELECT/WITH
@@ -78,13 +78,31 @@ function validateSQL(q) {
   // detect REAL multi-statements
   // after trailing semicolons removed
   
-  if (q.includes(";")) {
+  // if (q.includes(";")) {
 
-    throw new Error(
-      "Multiple SQL statements not allowed"
-    );
+  //   throw new Error(
+  //     "Multiple SQL statements not allowed"
+  //   );
 
-  }
+  // }
+
+  const cleanedForValidation =
+  q
+    .replace(/'[^']*'/g, "")
+    .replace(/--.*$/gm, "")
+    .replace(/;+$/g, "")
+    .trim();
+
+    if (
+      cleanedForValidation.includes(";")
+    ) {
+
+      throw new Error(
+        "Multiple SQL statements not allowed"
+      );
+
+    }
+
 
   return q;
 }
@@ -109,12 +127,13 @@ router.post("/", async (req, res) => {
   try {
     const { question, sessionId, model="gpt-5-mini", } = req.body;
 
-    const history = getMemory(sessionId);
+    const history = getMemory(sessionId).slice(-2);
     const aiRes = await safeGenerateSQL(question, history, model);
     // const sqlQuery = aiRes.sql;
     let sqlQuery = validateSQL(aiRes.sql);
     let result;
     let fix = null;
+    let fixedSQL = null;
     try {
           if (!isSafeQuery(aiRes.sql)) {
             throw new Error("Unsafe query blocked");
@@ -137,7 +156,7 @@ router.post("/", async (req, res) => {
         }
 
         fix = await fixSQL(sqlQuery, err.message, question,model);
-        let fixedSQL = validateSQL(fix.fixed_sql);
+        fixedSQL = validateSQL(fix.fixed_sql);
         console.log("🔧 FIXED SQL:", fix.fixed_sql);
 
         // retry with fixed query
@@ -146,11 +165,43 @@ router.post("/", async (req, res) => {
 
     
     
-    let normalizedSQL = normalizeQuery(fix?.fixed_sql || aiRes.sql);
+    // let normalizedSQL = normalizeQuery(fix?.fixed_sql || aiRes.sql);
+    let normalizedSQL = normalizeQuery(fix? fixedSQL: sqlQuery);
     if (!/limit\s+\d+/i.test(normalizedSQL)) {normalizedSQL += " LIMIT 50";}
     let finalSQL = normalizedSQL;
             
-    result  = await executeWithAutoFix(finalSQL,question,validateSQL);
+    // result  = await executeWithAutoFix(finalSQL,question,validateSQL);
+
+    
+    // try {
+
+    // result = {
+    //   data: await queryDB(finalSQL),
+    //   sqlQuery: finalSQL,
+    //   retries: 0
+    // };
+
+    // } catch (err) {
+
+    // console.log(
+    //   "❌ Direct query failed:",
+    //   err.message
+    // );
+
+    // result =
+    //   await executeWithAutoFix(
+    //     finalSQL,
+    //     question,
+    //     validateSQL
+    //   );
+
+    // }
+    // console.log(finalSQL)
+    result = {
+  data: result,
+  sqlQuery: finalSQL,
+  retries: 0
+    };
 
     if (result.data) {
 

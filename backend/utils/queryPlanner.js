@@ -6,17 +6,36 @@ const { ChatOpenAI } = require("@langchain/openai");
 const {HumanMessage,SystemMessage,} = require("@langchain/core/messages");
 const {getDataProfile} = require("./dataProfiler");
 
-async function planQuery(question, schemaText,model = "gpt-4o-mini") {
+async function planQuery(question, schemaText,model = "gpt-5-mini") {
   const entityType = classifyEntity(question);
   const profile =  await getDataProfile();
-  const sectorContext =  profile.sectorStats
-    .map(s =>
-      `${s.sector}:
-       max=${s.max_weight}%,
-       avg=${s.avg_weight}%`
+  const lowerQuestion =  question.toLowerCase();
 
-    )
-    .join("\n");
+  let suggestedThreshold = null;
+
+  if (
+    lowerQuestion.includes("technology") ||
+    lowerQuestion.includes("it")
+  ) {
+
+    const tech =
+      profile.sectorStats.find(
+        s =>
+          s.sector.toLowerCase() ===
+          "technology"
+      );
+
+    if (tech) {
+
+      suggestedThreshold =
+        Math.round(tech.avg_weight);
+
+    }
+  }
+
+  const maxAUM = profile.maxAUM;
+  const disableAUMFilters = maxAUM < 1000;
+  if (maxAUM < 1000) { disableAUMFilters = true;}
 
   const llm = createLLM(model);
   const res = await llm.invoke([
@@ -29,9 +48,6 @@ Your job is to determine:
 2. Which supporting columns should be shown
 3. Which tables are required
 4. What business logic should be applied
-
-DATABASE SCHEMA:
-${schemaText}
 
 RULES:
 - Prefer business metrics over raw transaction sums
@@ -48,29 +64,6 @@ CONFIDENCE RULES:
 - 0.9 to 1.0 = very clear analytical intent
 - 0.7 to 0.89 = likely correct metric
 - below 0.7 = ambiguous query, may require follow-up questions
-
-MINIMAL TABLE RULE:
-Only join tables necessary to answer the question.
-Avoid unnecessary joins.
-
-EXAMPLES:
-
-Question:
-Compare Disney Limited buy vs sell transactions
-
-ENTITY TYPE:
-investor
-
-Correct SQL pattern:
-
-SELECT
-  it.txn_type,
-  SUM(it.amount)
-FROM investors i
-JOIN investor_transactions it
-  ON i.investor_id = it.investor_id
-WHERE i.investor_name ILIKE '%Disney Limited%'
-GROUP BY it.txn_type
 
 COUNTRY-FOCUSED RULES:
 
@@ -90,17 +83,6 @@ country_exposure_view
 over:
 funds.country
 
-
-COUNTRY NORMALIZATION RULES:
-
-Use exact country values from database.
-
-Example:
-- USA
-NOT:
-- United States
-- US
-
 ENTITY RULES:
 
 - "best performing portfolio/fund"
@@ -119,283 +101,76 @@ ENTITY RULES:
 
 - Do NOT calculate risk-adjusted return manually
 
-ENTITY MATCHING RULES:
-- Never use exact equality for fund names unless full name is provided
-- Prefer fuzzy matching:
-  ILIKE '%name%'
-- For partial names:
-  use wildcard matching
-- If multiple funds match:
-  return the best matches OR use most recent/highest AUM
-
-ENTITY RESOLUTION RULES:
-
-If entity_type = investor:
-- use investors
-- use investor_transactions
+HIGH RECALL RULES:
 
-If entity_type = fund:
-- use funds
-- use holdings
-- use fund metrics
-
-If entity_type = benchmark:
-- use benchmarks
-- use benchmark_performance_view
-
-Asset names must use:
-- holdings
-- asset_country_map
-
-- investors.investor_name = investor entities
-- funds.fund_name = fund entities
-- holdings.asset_name = asset/security entities
-- benchmark_comparison_view.benchmark_name = benchmarks
-
-Never search investor names in funds.fund_name.
-Never search investor names in holdings.asset_name.
-Never assume named entities are funds.
-
-STRICT ENTITY ENFORCEMENT:
-
-If ENTITY TYPE = investor:
-- NEVER filter using:
-  funds.fund_name
-  holdings.asset_name
-
-- ALWAYS filter using:
-  investors.investor_name
-
-- NEVER join funds unless explicitly required by question
-
-Examples:
-Question:
-"Disney Limited buy vs sell transactions"
+Prefer returning relevant rows
+over institutional screening.
 
-CORRECT:
-WHERE investors.investor_name ILIKE '%Disney Limited%'
+TOP/BEST/HIGHEST queries mean:
+simple ranking queries.
 
-WRONG:
-WHERE funds.fund_name ILIKE '%Disney Limited%'
-
-AMBIGUITY RULES:
-
-If the user says:
-- top funds
-- best funds
-- leading funds
-
-WITHOUT specifying a metric:
+Do NOT infer:
+- minimum AUM
+- minimum history
+- minimum exposure
+- institutional investability
+- benchmark overlap validation
 
-THEN:
-- prefer simple ranking
-- use existing analytical views
-- avoid complex calculations
-- avoid restrictive filters
-- prefer:
-  fund_master_metrics.cagr
+unless explicitly requested.
 
-Do NOT:
-- reconstruct returns from nav_history
-- require long history windows
-- require benchmark comparisons
-unless explicitly requested
-
-DEFAULT FUND RANKING:
-If no metric specified:
-1. Use cagr
-2. Fallback to risk_adjusted_return
-3. Use fund_master_metrics
-4. Return top rows directly
+Use:
+WHERE metric IS NOT NULL
+instead of restrictive filters.
 
-COMPLEXITY RULES:
-- Simple question → simple SQL
-- Avoid CTEs unless necessary
-- Avoid lateral joins unless necessary
-- Avoid reconstructing metrics if analytical views already exist
-
-DATA PROFILE:
-${sectorContext}
-
-Use realistic thresholds based on actual data distributions.
-Avoid impossible filters.
+Avoid:
+- HAVING exposure >= X
+- inception date filters
+- interval alignment
+- complex benchmark period logic
+- nested benchmark reconstruction
 
-METRIC LOCATION RULES:
+Suggested sector exposure threshold:
+${suggestedThreshold || "none"}
 
-sharpe_ratio:
-- comes from fund_sharpe_view
+Only use thresholds
+when explicitly requested
+or absolutely necessary.
 
-cagr:
-- comes from fund_master_metrics
+DATASET SCALE:
 
-risk_adjusted_return:
-- comes from fund_master_metrics
+Maximum AUM in dataset:
+${maxAUM}
 
-EXPOSURE RULES:
+If dataset values are small/demo-scale:
 
-- Market exposure, country exposure, sector exposure, and geographic exposure
-- MUST be calculated from:
-  - holdings
-  - asset_country_map
-  - sector_exposure_view
-  - country_exposure_view
-- Never use funds.country for portfolio exposure analysis.
-- funds.country represents fund domicile only.
+Do NOT generate:
+- institutional thresholds
+- large numeric filters
+- AUM minimums
 
-SECTOR EXPOSURE RULES:
+Benchmark comparison rules:
 
-Questions about:
-- IT exposure
-- Technology exposure
-- Energy exposure
-- Financial exposure
-- sector allocation
-- market exposure
+Use:
+latest available benchmark row.
 
-MUST use:
-- sector_exposure_view
-- holdings.sector
+Compare:
+fund cagr
+vs
+benchmark return_pct.
 
-Never use:
-- diversification_score
-- concentration_index
+Avoid:
+- benchmark window reconstruction
+- overlapping history checks
+- interval validation
+- fallback benchmark periods
 
-Technology sector is equivalent to IT sector.
+unless explicitly requested.
 
-EXPOSURE THRESHOLD RULES:
-
-Do NOT assume arbitrary thresholds like:
-- 50%
-- 70%
-- 80%
-
-for sector exposure queries.
-
-Typical realistic sector exposure ranges:
-- 10% to 30%
-
-For queries like:
-- heavily invested
-- technology-focused
-- concentrated in
-- high exposure
-
-prefer:
-ORDER BY exposure DESC
-LIMIT 10
-
-instead of hardcoded thresholds.
-
-PERFORMANCE QUERY RULES:
-
-Questions containing:
-- best performing
-- top performing
-- highest return
-- strongest performance
-
-MUST rank using:
-- cagr
-- risk_adjusted_return
-- sharpe_ratio
-
-NOT:
-- exposure
-- diversification
-- concentration
-
-TRANSACTION RULES:
-
-- Use actual txn_type values from schema examples
-- Do not invent transaction types
-- If txn_type vocabulary is unknown:
-  calculate:
-    SUM(amount)
-  directly
-  instead of filtering by txn_type
-
-SECTOR MATCHING RULES:
-
-- Never use:
-  ILIKE '%it%'
-
-- "IT" sector should map to:
-  - Information Technology
-  - Technology
-  - Tech
-  - IT Services
-  - Software
-
-- Prefer exact semantic sector mapping
-- Avoid ambiguous short keyword matching
-
-SECTOR THRESHOLD RULES:
-
-- "heavily invested" defaults to:
-  15%
-
-- only use:
-  30%+
-if user explicitly says:
-  highly concentrated
-
-COMPARISON RULES:
-
-If query compares against:
-- benchmark
-- index
-- sector average
-- another fund
-
-THEN ALWAYS:
-- include comparison metric in output
-- include benchmark metric in output
-- include delta/excess return column
-- expose WHY entity outperformed
-
-When comparing two entities:
-- never compare an entity against itself
-- use one entity as baseline
-- delta metrics should compare across entities
-
-Incorrect:
-fund.cagr - same_fund.cagr
-
-Correct:
-fund_a.cagr - fund_b.cagr
-
-RISK EXPOSURE RULES:
-
-For investor exposure/risk questions:
-- use investors
-- use investor_transactions
-- use country_exposure_view
-- aggregate exposure by country
-
-BENCHMARK RULES:
-
-Benchmarks come from:
-- benchmarks
-- benchmark_performance_view
-
-Never search benchmarks inside:
-- funds
-- fund_master_metrics
-
-BENCHMARK PERFORMANCE RULES:
-
-Benchmark returns MUST come from:
-- benchmark_performance_view.return_pct
-
-Never assume benchmark metric = 0.
-Never derive benchmark return from fund tables.
-
-
-METRIC NORMALIZATION RULES:
-- CAGR values are percentages
-- Exposure values are percentages
-- Excess return values are percentages
-- Do not mix decimal returns with percentage returns
+Return ONLY valid JSON.
+No markdown.
+No SQL.
+No comments.
+No explanations outside JSON.
 
 FORMAT:
 {
@@ -411,7 +186,7 @@ FORMAT:
   "ownership_logic": "...",
   "business_logic": "...",
 
-  "confidence": 0.0
+  "confidence": 0.0,
 
   "comparison_required": false,
   "comparison_metric": "...",
@@ -424,13 +199,33 @@ FORMAT:
     // new HumanMessage(question)
     new HumanMessage(`USER QUESTION:${question} ENTITY TYPE: ${entityType}`)
 
-  ]);
+  ],
+  {
+    response_format: {
+      type: "json_object"
+    }
+  }
+);
+
+// SUGGESTED THRESHOLD:
+// ${suggestedThreshold || "none"}
+
+// Use realistic thresholds based on actual data distributions.
+// Avoid impossible filters.
 
 //   return JSON.parse(res.content);
-const plan = JSON.parse(res.content);
+const raw =
+  typeof res.content === "string"
+    ? res.content
+    : JSON.stringify(res.content);
+
+const cleaned = raw.trim();
+const plan =  JSON.parse(cleaned);
+
+// const plan = JSON.parse(res.content);
 plan.entity_type = classifyEntity(question);
 
-const lowerQuestion = question.toLowerCase();
+// const lowerQuestion = question.toLowerCase();
 
 for (const [key, benchmark] of Object.entries(benchmarkDictionary)) {
 
@@ -487,6 +282,10 @@ if (plan.benchmark) {
 
   plan.delta_column = "excess_return";
 }
+plan.disable_aum_filters = disableAUMFilters;
+plan.max_aum = maxAUM;
+plan.simple_ranking_query = /(top|best|highest|leading)/i.test(question);
+plan.benchmark_query = !!plan.benchmark;
 
 return plan;
 }

@@ -7,9 +7,9 @@ async function getSchema() {
   const now = Date.now();
 
   // cache for 5 mins
-  // if (cachedSchema && now - lastFetch < 5 * 60 * 1000) {
-  //   return cachedSchema;
-  // }
+  if (cachedSchema && now - lastFetch < 5 * 60 * 1000) {
+    return cachedSchema;
+  }
   
   // ✅ Get all tables (PostgreSQL)
   const tables = await queryDB(`
@@ -117,6 +117,7 @@ ORDER BY table_type, table_name
       }
 
       enrichedCols.push(enriched);
+      
     }
 
     // schema[table] = enrichedCols;
