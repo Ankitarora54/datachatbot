@@ -23,7 +23,7 @@ function App() {
   // const [isAuthenticated, setIsAuthenticated] = useState(() =>
   //   Boolean(localStorage.getItem("token"))
   // );
-  const [selectedModel, setSelectedModel] = useState("gpt-5-mini");
+  const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
 
   useEffect(() => {
     const API = import.meta.env.VITE_API_URL;
