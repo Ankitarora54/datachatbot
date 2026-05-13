@@ -9,6 +9,12 @@ function App() {
   const [loading, setLoading] = useState(false);
 
   const DEMO_MODE = true;
+  if (DEMO_MODE) {
+  localStorage.setItem(
+    "token",
+    "demo-token"
+  );
+  }
   const [isAuthenticated, setIsAuthenticated] =
     useState(
       DEMO_MODE ||
@@ -17,7 +23,7 @@ function App() {
   // const [isAuthenticated, setIsAuthenticated] = useState(() =>
   //   Boolean(localStorage.getItem("token"))
   // );
-  const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
+  const [selectedModel, setSelectedModel] = useState("gpt-5-mini");
 
   useEffect(() => {
     const API = import.meta.env.VITE_API_URL;

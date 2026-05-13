@@ -107,11 +107,9 @@ function generateInsight(result) {
 
 router.post("/", async (req, res) => {
   try {
-    const { question, sessionId, model="gpt-4o-mini", } = req.body;
+    const { question, sessionId, model="gpt-5-mini", } = req.body;
 
     const history = getMemory(sessionId);
-
-    // const aiRes = await generateSQL(question, history);
     const aiRes = await safeGenerateSQL(question, history, model);
     // const sqlQuery = aiRes.sql;
     let sqlQuery = validateSQL(aiRes.sql);
@@ -138,7 +136,6 @@ router.post("/", async (req, res) => {
                 }
         }
 
-        // 🔥 Fix SQL using AI
         fix = await fixSQL(sqlQuery, err.message, question,model);
         let fixedSQL = validateSQL(fix.fixed_sql);
         console.log("🔧 FIXED SQL:", fix.fixed_sql);
@@ -147,41 +144,13 @@ router.post("/", async (req, res) => {
         result = await queryDB(fixedSQL);
         }
 
+    
+    
     let normalizedSQL = normalizeQuery(fix?.fixed_sql || aiRes.sql);
-
     if (!/limit\s+\d+/i.test(normalizedSQL)) {normalizedSQL += " LIMIT 50";}
     let finalSQL = normalizedSQL;
-
+            
     result  = await executeWithAutoFix(finalSQL,question,validateSQL);
-        
-    //     if (result.data) {
-
-    //   result.data = result.data.map(row => {
-
-    //     const cleaned = {};
-
-    //     for (const key in row) {
-
-    //       const value = row[key];
-
-    //       // if (value instanceof Date) 
-    //       if (value instanceof Date || (typeof value === "string" &&value.includes("T") &&
-    //         !isNaN(Date.parse(value))
-    //           )
-    //         )
-    //         {
-    //         cleaned[key] =
-    //           value.toISOString().split("T")[0];
-
-    //       } else {
-
-    //         cleaned[key] = value;
-    //       }
-    //     }
-
-    //     return cleaned;
-    //   });
-    // }
 
     if (result.data) {
 
